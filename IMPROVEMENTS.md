@@ -199,7 +199,7 @@ dist/
 | 优先级 | 改动 | 涉及文件 | 状态 |
 |--------|------|----------|:----:|
 | P0 | 密码加密 | `UserService.java`, `DatabaseInitializer.java`, `application.properties` | ✅ |
-| P0 | 权限拦截 | 新增 `LoginInterceptor.java`, `WebConfig.java`, `TokenStore.java` | ✅ |
+| P0 | 权限拦截 | 新增 `LoginInterceptor.java`, `WebConfig.java`(排除 login + register), `TokenStore.java` | ✅ |
 | P0 | 消息幂等 | `DatabaseInitializer.java` seedChatMessage | ✅ |
 | P0 | 参数校验 | `AuthController.java` login 空值校验 | ✅ |
 | P1 | 单元测试 | 新增 `AuthControllerTest.java` (7 tests) | ✅ |
@@ -211,6 +211,14 @@ dist/
 | P3 | Vue-Router | 前端路由改造 | ⏳ |
 | P3 | AOP 日志 | 新增切面 | ⏳ |
 | P2 | 智能宿舍分配算法 | 新增 `RoomAssignmentService.java`, `AssignmentController.java`, `SmartAssignment.vue`, `RegisterForm.vue`, `ProfileCompletionModal.vue` 等 | ✅ |
+| P4 | 修改密码 | `UserService.updatePassword()` + `PUT /api/users/password` + AccountSettings UI | ✅ |
+| P4 | 分配通知 | AssignmentController WebSocket 推送 + ChatView 自动刷新 | ✅ |
+| P4 | 注册引导 | 未分配学生顶部横幅提示 | ✅ |
+| P4 | 调宿推荐 | TransferPage 对接推荐算法 Top-3 | ✅ |
+| P4 | 登出确认 + 电话校验 | 登出二次确认 + 手机号正则验证 | ✅ |
+| P4 | 算法可视化 | 兼容性热力图 + 宿舍得分仪表盘 + 分配前后对比 | ✅ |
+| P4 | 入住/房间管理对接 | CheckinManage/RoomManage 改为查询 sys_user 真实数据 | ✅ |
+| P4 | 审核工作流 | RecordList 通过/驳回按钮，App.vue 一键更新状态 | ✅ |
 
 ---
 
@@ -346,3 +354,75 @@ dist/
 5. **时序图 + 测试扩充**（1 天）
 
 完成以上后，论文可以从纯 CRUD 系统升级为"含智能算法的宿舍管理系统"，评优概率大幅提升。
+
+---
+
+## P4 — 用户体验优化建议（从使用者角度）
+
+> 以下问题不影响核心功能，但影响真实用户的使用体验。按影响程度排序。
+
+### 16. ✅ 缺少修改密码功能 — 已完成
+
+**已完成内容**：
+- 后端新增 `UserService.updatePassword()` + `UserController` `PUT /api/users/password`
+- 前端 `api.js` 新增 `changePassword()` 函数
+- `AccountSettings.vue` 新增修改密码区域（旧密码 + 新密码 + 确认）
+
+### 17. ✅ 分配宿舍后无通知 — 已完成
+
+**已完成内容**：
+- `AssignmentController.confirm()` 确认后通过 `ChatWebSocketHandler.pushToUser()` 推送 `dorm_assigned` 消息给每个学生
+- `ChatView.vue` WebSocket onmessage 处理 `dorm_assigned` 类型，自动刷新页面和菜单
+
+### 18. ✅ 注册后缺乏引导 — 已完成
+
+**已完成内容**：
+- `App.vue` 未分配学生页面顶部显示引导横幅："你已完成注册，管理员分配宿舍后即可使用完整功能..."
+
+### 19. ✅ 调宿申请未使用推荐算法 — 已完成
+
+**已完成内容**：
+- `TransferPage.vue` 新增"查看推荐宿舍"按钮，调用 `recommendTransfer(userId)` 展示 Top-3
+- 点击推荐宿舍自动填入期望宿舍字段
+
+### 20. ⏳ 室友在寝状态硬编码
+
+**问题**：室友列表中的"在寝/离寝"状态写死为"在寝"，没有真实数据支撑。
+**说明**：影响较小，留作后续优化。
+
+### 21. ✅ 缺少登出确认 — 已完成
+
+**已完成内容**：
+- `App.vue` 的 `logout()` 方法添加 `window.confirm('确认退出登录？')` 二次确认
+
+### 22. ✅ 电话格式无校验 — 已完成
+
+**已完成内容**：
+- `RegisterForm.vue`、`AccountSettings.vue` 前端正则 `/^1[3-9]\d{9}$/` 校验手机号格式
+
+---
+
+## 优秀毕设评估
+
+### 当前水平定位
+
+| 评估维度 | 状态 | 说明 |
+|----------|:----:|------|
+| 系统完整性 | ⭐⭐⭐⭐⭐ | 三角色全覆盖，CRUD + 即时通讯 + AI + 天气 |
+| 安全性 | ⭐⭐⭐⭐ | BCrypt + Token + 拦截器 + 参数校验 |
+| 算法创新 | ⭐⭐⭐⭐⭐ | 两阶段贪心匹配 + 10维加权评分 + 调宿推荐，**同类毕设中极少见** |
+| 前端体验 | ⭐⭐⭐⭐ | 自定义 CSS、响应式、床位可视化、步骤式注册 |
+| 代码规范 | ⭐⭐⭐ | 分层清晰但未用 MyBatis/MyBatis-Plus，SQL 直接拼接 |
+| 测试覆盖 | ⭐⭐ | 7 个测试用例，建议补到 15+ |
+| 文档完整度 | ⭐⭐⭐⭐ | README + 功能文档 + 结构文档 + 改进清单 + 算法设计文档 |
+| 论文素材 | ⭐⭐⭐⭐⭐ | ER图、架构图、用例图、算法伪代码、时序图均可产出 |
+
+### 结论
+
+**已达到本科优秀毕设水平。** 核心优势是"算法创新"——绝大多数宿舍管理毕设是纯 CRUD，而本项目实现了一个有理论支撑的智能分配算法（兼容性评分模型 + 两阶段贪心），论文中有充分的算法描述空间。
+
+**答辩加分建议**：
+1. 论文重点展开第五章（算法设计），写清楚问题建模 → 评分公式 → 两阶段贪心 → 复杂度分析 → 实验对比
+2. 补一组对比实验：随机分配 vs 贪心分配 vs 匈牙利算法的兼容度均值差异（建议 50-100 个模拟学生）
+3. ER 图、架构图、时序图（登录鉴权流程）三张图嵌入论文
+4. 测试用例补到 15+，覆盖算法服务的边界情况

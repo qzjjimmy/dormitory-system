@@ -37,6 +37,17 @@
           </div>
           <p v-if="phoneMsg" class="acct-msg" :class="{ ok: phoneOk }">{{ phoneMsg }}</p>
         </div>
+
+        <!-- Password change -->
+        <div class="acct-field acct-phone">
+          <label>修改密码</label>
+          <div class="acct-edit-row">
+            <input v-model="oldPwd" type="password" placeholder="旧密码" class="acct-input" style="flex:1">
+            <input v-model="newPwd" type="password" placeholder="新密码（至少6位）" class="acct-input" style="flex:1">
+            <button class="reg-btn primary" style="width:auto;padding:8px 16px;font-size:13px;white-space:nowrap" @click="savePassword">修改密码</button>
+          </div>
+          <p v-if="pwdMsg" class="acct-msg" :class="{ ok: pwdOk }">{{ pwdMsg }}</p>
+        </div>
       </div>
     </div>
 
@@ -139,8 +150,7 @@
 </template>
 
 <script>
-import { fetchUsers } from '../api.js'
-import { updateProfile } from '../api.js'
+import { fetchUsers, updateProfile, changePassword } from '../api.js'
 
 export default {
   name: 'AccountSettings',
@@ -153,6 +163,10 @@ export default {
       phone: this.currentUser.phone || '',
       phoneMsg: '',
       phoneOk: false,
+      oldPwd: '',
+      newPwd: '',
+      pwdMsg: '',
+      pwdOk: false,
       form: { gender:'', majorClass:'', sleepHabit:'', smoking:'', hobbies:[], cleanliness:'', gaming:'', snoring:'', returnTime:'', noiseTolerance:'', preferredRoomType:'', preferredBed:'' }
     }
   },
@@ -199,6 +213,10 @@ export default {
         this.phoneMsg = '电话不能为空'
         return
       }
+      if (!/^1[3-9]\d{9}$/.test(this.phone.trim())) {
+        this.phoneMsg = '请输入正确的手机号'
+        return
+      }
       try {
         await updateProfile({
           gender: this.form.gender,
@@ -223,6 +241,27 @@ export default {
         sessionStorage.setItem('dorm-user', JSON.stringify(user))
       } catch (e) {
         this.phoneMsg = e.message
+      }
+    },
+    async savePassword() {
+      this.pwdMsg = ''
+      this.pwdOk = false
+      if (!this.oldPwd || !this.newPwd) {
+        this.pwdMsg = '请填写旧密码和新密码'
+        return
+      }
+      if (this.newPwd.length < 6) {
+        this.pwdMsg = '新密码至少6位'
+        return
+      }
+      try {
+        await changePassword(this.oldPwd, this.newPwd)
+        this.pwdMsg = '密码修改成功'
+        this.pwdOk = true
+        this.oldPwd = ''
+        this.newPwd = ''
+      } catch (e) {
+        this.pwdMsg = e.message
       }
     }
   }

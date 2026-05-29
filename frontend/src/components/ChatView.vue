@@ -212,7 +212,6 @@ export default {
             if (this.activeContact && this.activeContact.id === msg.fromUserId) {
               this.messages.push(msg)
               this.$nextTick(() => this.scrollToBottom())
-              // Mark as read
               fetchMessages(this.currentUserId, msg.fromUserId)
             }
             // Update contact preview
@@ -225,6 +224,13 @@ export default {
               }
               this.contacts.sort((a, b) => (b.unread || 0) - (a.unread || 0))
             }
+          }
+          if (data.type === 'dorm_assigned') {
+            // Update sessionStorage and reload to refresh menus
+            const user = JSON.parse(sessionStorage.getItem('dorm-user') || '{}')
+            user.roomNo = (data.roomNo || '') + ' · ' + (data.bedNo || '')
+            sessionStorage.setItem('dorm-user', JSON.stringify(user))
+            window.location.reload()
           }
         } catch (e) { /* ignore */ }
       }

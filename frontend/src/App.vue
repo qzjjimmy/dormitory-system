@@ -94,6 +94,11 @@
         <div v-if="menuOpen" class="dp-overlay" @click="menuOpen = false"></div>
       </header>
 
+      <!-- Unassigned student banner -->
+      <div v-if="currentUser.role === 'student' && !currentUser.roomNo" class="onboard-banner">
+        🏠 你已完成注册，管理员分配宿舍后即可使用完整功能。当前可浏览公告、咨询 AI 助手或与管理员通话。
+      </div>
+
       <!-- Student Dashboard -->
       <template v-if="activeMenu && activeMenu.key === 'dashboard' && currentUser.role === 'student'">
         <StudentDashboard
@@ -199,6 +204,8 @@
           @remove="removeRecord"
           @save="saveRecord"
           @cancel="editingRecord = null"
+          @approve="approveRecord"
+          @reject="rejectRecord"
         />
       </template>
 
@@ -341,6 +348,7 @@ export default {
       }
     },
     logout() {
+      if (!window.confirm('确认退出登录？')) return
       apiLogout().catch(() => {})
       sessionStorage.removeItem('dorm-user')
       this.currentUser = null
@@ -470,6 +478,14 @@ export default {
     async removeRecord(id) {
       if (!window.confirm('确认删除这条记录？')) return
       await deleteRecord(id)
+      this.loadRecords()
+    },
+    async approveRecord(row) {
+      await updateRecord(row.id, { ...row, status: '已通过' })
+      this.loadRecords()
+    },
+    async rejectRecord(row) {
+      await updateRecord(row.id, { ...row, status: '已驳回' })
       this.loadRecords()
     },
     barWidth(value) {

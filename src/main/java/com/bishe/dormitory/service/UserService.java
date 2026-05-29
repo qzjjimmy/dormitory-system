@@ -146,4 +146,21 @@ public class UserService {
                 profile.get("noiseTolerance"), profile.get("preferredRoomType"), profile.get("preferredBed"),
                 profile.get("phone"), userId);
     }
+
+    public void updatePassword(Long userId, String oldPassword, String newPassword) {
+        // Verify old password
+        String stored = jdbcTemplate.queryForObject(
+                "SELECT password FROM sys_user WHERE id=?", String.class, userId);
+        boolean match;
+        if (stored != null && stored.startsWith("$2a$")) {
+            match = passwordEncoder.matches(oldPassword, stored);
+        } else {
+            match = oldPassword.equals(stored);
+        }
+        if (!match) {
+            throw new IllegalArgumentException("原密码错误");
+        }
+        jdbcTemplate.update("UPDATE sys_user SET password=? WHERE id=?",
+                passwordEncoder.encode(newPassword), userId);
+    }
 }

@@ -13,10 +13,27 @@
         <div class="field wide"><label>申请原因</label><textarea v-model="form.content" placeholder="请说明申请调宿的原因"></textarea></div>
         <div class="field wide actions">
           <button class="blue-btn" @click="submit">提交申请</button>
+          <button class="reg-btn outline" style="width:auto;padding:8px 20px;font-size:13px" @click="loadRecommendations">🔍 查看推荐宿舍</button>
           <button @click="showForm = false">取消</button>
         </div>
       </div>
     </div>
+
+    <!-- Recommendation panel -->
+    <div v-if="recommendations.length > 0" class="recommend-panel">
+      <h4>为你推荐的宿舍（匹配度 Top 3）</h4>
+      <div v-for="(rec, idx) in recommendations" :key="rec.roomNo" class="recommend-card" @click="form.location = rec.roomNo">
+        <div class="rec-rank">#{{ idx + 1 }}</div>
+        <div class="rec-info">
+          <strong>{{ rec.roomNo }}</strong>
+          <span>现有 {{ rec.currentCount }}/4 人</span>
+          <span class="rec-score">匹配度 {{ rec.compatibility }} 分</span>
+          <span class="rec-reason">{{ rec.reason }}</span>
+          <span class="rec-hint">点击填入期望宿舍</span>
+        </div>
+      </div>
+    </div>
+    <p v-if="recMsg" class="reg-error" style="text-align:center">{{ recMsg }}</p>
 
     <div class="table-wrap" style="margin-top: 18px">
       <table>
@@ -43,6 +60,7 @@
 
 <script>
 import { fetchRecords, createRecord, deleteRecord } from '../api.js'
+import { recommendTransfer } from '../api.js'
 
 export default {
   name: 'TransferPage',
@@ -54,7 +72,9 @@ export default {
     return {
       showForm: false,
       form: { location: '', content: '' },
-      records: []
+      records: [],
+      recommendations: [],
+      recMsg: ''
     }
   },
   mounted() {
@@ -90,6 +110,17 @@ export default {
         await deleteRecord(id)
         this.loadRecords()
       } catch (e) { /* ignore */ }
+    },
+    async loadRecommendations() {
+      this.recommendations = []
+      this.recMsg = ''
+      try {
+        const user = JSON.parse(sessionStorage.getItem('dorm-user') || '{}')
+        if (!user.id) { this.recMsg = '无法获取用户信息'; return }
+        const data = await recommendTransfer(user.id)
+        this.recommendations = data || []
+        if (this.recommendations.length === 0) this.recMsg = '暂无可推荐的宿舍'
+      } catch (e) { this.recMsg = '推荐失败: ' + e.message }
     },
     isPending(status) {
       return ['待审核', '审核中'].includes(status)

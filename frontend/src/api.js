@@ -114,6 +114,13 @@ export function updateProfile(profile) {
   })
 }
 
+export function changePassword(oldPassword, newPassword) {
+  return request('/users/password', {
+    method: 'PUT',
+    body: JSON.stringify({ oldPassword, newPassword })
+  })
+}
+
 // -- Smart Assignment --
 export function runAssignment() {
   return request('/assignment/run', { method: 'POST' })
@@ -128,4 +135,12 @@ export function confirmAssignment(assignments) {
     method: 'POST',
     body: JSON.stringify({ assignments })
   })
+}
+
+export function fetchHeatmap() {
+  return request('/assignment/heatmap')
+}
+
+export function fetchRooms() {
+  return request('/assignment/rooms')
 }

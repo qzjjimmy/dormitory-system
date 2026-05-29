@@ -64,4 +64,22 @@ public class UserController {
         userService.updateProfile(userId, profile);
         return ApiResponse.ok("特征更新成功");
     }
+
+    @PutMapping("/password")
+    public ApiResponse<String> updatePassword(@RequestBody Map<String, String> body, HttpServletRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> currentUser = (Map<String, Object>) request.getAttribute("currentUser");
+        Long userId = ((Number) currentUser.get("id")).longValue();
+        String oldPassword = body.get("oldPassword");
+        String newPassword = body.get("newPassword");
+        if (oldPassword == null || oldPassword.trim().isEmpty()
+                || newPassword == null || newPassword.trim().isEmpty()) {
+            return ApiResponse.fail("密码不能为空");
+        }
+        if (newPassword.length() < 6) {
+            return ApiResponse.fail("新密码至少6位");
+        }
+        userService.updatePassword(userId, oldPassword, newPassword);
+        return ApiResponse.ok("密码修改成功");
+    }
 }

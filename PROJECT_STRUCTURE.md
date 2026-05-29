@@ -149,11 +149,11 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 | `DashboardController.java` | `GET /api/dashboard` | 控制台统计，调用 `RecordService.dashboard()` |
 | `HealthController.java` | `GET /api/health` | 健康检查，验证数据库连接状态 |
 | `RecordController.java` | `GET/POST/PUT/DELETE /api/records` | 业务记录 CRUD，支持分页参数 page/size，调用 `RecordService` |
-| `UserController.java` | `GET/POST/PUT/DELETE /api/users` | 用户管理 CRUD，支持分页参数 page/size，调用 `UserService` |
+| `UserController.java` | `GET/POST/PUT/DELETE /api/users`, `PUT /api/users/profile`, `PUT /api/users/password` | 用户管理 CRUD + 分页 + 特征更新 + 修改密码 |
 | `AiController.java` | `POST /api/ai/chat` | AI 对话，对接 DeepSeek API（真实调用，key 降级自动走本地回复） |
 | `ChatController.java` | `GET/POST /api/chat/*` | 即时通讯 REST API，调用 `ChatService`，发送后通过 `ChatWebSocketHandler` 推送 |
 | `WeatherController.java` | `GET /api/weather` | 通过 wttr.in 免费 API 实时获取福州市连江县天气，无需登录 |
-| `AssignmentController.java` | `POST /api/assignment/run`, `GET /api/assignment/recommend/{id}`, `POST /api/assignment/confirm` | 智能宿舍分配：运行分配算法、调宿推荐、确认分配写入数据库 |
+| `AssignmentController.java` | `POST /api/assignment/run`, `GET /api/assignment/recommend/{id}`, `POST /api/assignment/confirm`, `GET /api/assignment/heatmap`, `GET /api/assignment/rooms` | 智能宿舍分配：运行算法、调宿推荐、确认分配+WebSocket通知、热力图数据、已有宿舍查询 |
 
 ### service — 业务层
 
@@ -217,8 +217,8 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 | `StudentDashboard.vue` | 学生 | 首页：欢迎语、北京时间、天气、公告、快捷卡片、评分圆环、室友 |
 | `MyDorm.vue` | 学生 | 我的宿舍：宿舍信息、室友列表、床位布局、设施状态+卫生评分合并卡片 |
 | `AdminDashboard.vue` | 管理员/宿管 | 控制台：统计卡片 + 分类柱状图 |
-| `RecordList.vue` | 通用 | 通用列表：搜索框 + 数据表格 + 新增/编辑弹窗表单 + 删除 |
-| `AccountSettings.vue` | 全部 | 账户设置：基本信息只读展示，仅电话可编辑，学生特征卡片网格展示 |
+| `RecordList.vue` | 通用 | 通用列表：搜索框 + 数据表格 + 新增/编辑弹窗 + 删除 + 通过/驳回审核按钮 |
+| `AccountSettings.vue` | 全部 | 账户设置：基本信息只读 + 电话编辑 + 密码修改 + 学生特征卡片网格 |
 | `AiChat.vue` | 学生 | AI 助手：左侧对话历史 + 中间多轮消息气泡 + 右侧建议面板，历史按用户 ID 隔离 localStorage |
 | `ChatView.vue` | 全部 | 即时通讯：联系人列表（未分配仅见管理员/宿管）+ WebSocket 实时消息 + 未读角标 |
 | `RegisterForm.vue` | 学生（登录页） | 新生注册：两页表单（账号 + 10 特征）+ 房间/床位偏好选择 |
@@ -227,8 +227,8 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 | `RatingPage.vue` | 学生 | 服务评价：综合评分圆环 + 评价记录 + 提交表单 |
 | `VisitorPage.vue` | 学生 | 访客预约：记录表格 + 点击展开预约表单 |
 | `TransferPage.vue` | 学生 | 调宿申请：记录表格 + 点击展开申请表 |
-| `CheckinManage.vue` | 管理员/宿管 | 入住管理：统计卡片 + 人员卡片网格 + 登记表单 |
-| `RoomManage.vue` | 管理员/宿管 | 房间管理：统计 + 房间卡片网格 + 新增/编辑表单 |
+| `CheckinManage.vue` | 管理员/宿管 | 入住管理：统计卡片 + 学生卡片网格（对接 sys_user 真实数据） |
+| `RoomManage.vue` | 管理员/宿管 | 房间管理：自动从 sys_user 聚合宿舍数据，统计+卡片+成员列表 |
 
 ### 样式
 

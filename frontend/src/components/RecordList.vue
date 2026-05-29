@@ -41,6 +41,8 @@
             <td><span class="state" :class="{ warn: isTodo(row.status) }">{{ row.status }}</span></td>
             <td>{{ row.content }}</td>
             <td>
+              <button v-if="isTodo(row.status)" class="link-btn" style="color:#27ae60" @click="$emit('approve', row)">通过</button>
+              <button v-if="isTodo(row.status)" class="link-btn" style="color:#e67e22" @click="$emit('reject', row)">驳回</button>
               <button class="link-btn" @click="$emit('edit', row)">编辑</button>
               <button class="link-btn danger" @click="$emit('remove', row.id)">删除</button>
             </td>
@@ -64,7 +66,7 @@ export default {
     editing: { type: Boolean, default: false },
     form: { type: Object, default: () => ({}) }
   },
-  emits: ['search', 'create', 'edit', 'remove', 'save', 'cancel'],
+  emits: ['search', 'create', 'edit', 'remove', 'save', 'cancel', 'approve', 'reject'],
   data() {
     return {
       searchKeyword: ''

@@ -222,6 +222,10 @@ export default {
         this.errorMessage = '请完善所有特征信息'
         return
       }
+      if (this.form.phone && !/^1[3-9]\d{9}$/.test(this.form.phone.trim())) {
+        this.errorMessage = '请输入正确的手机号'
+        return
+      }
       try {
         const payload = {
           username: this.form.username,

@@ -213,6 +213,100 @@ public class RoomAssignmentService {
         }
     }
 
+    // -- Get all existing assigned rooms with compatibility scores --
+    public Map<String, Object> getAllRooms() {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "SELECT id,real_name AS realName,room_no AS roomNo,gender,major_class AS majorClass," +
+            "sleep_habit AS sleepHabit,smoking,hobbies,cleanliness,gaming,snoring," +
+            "return_time AS returnTime,noise_tolerance AS noiseTolerance " +
+            "FROM sys_user WHERE role='student' AND room_no IS NOT NULL");
+
+        // Group by room prefix
+        Map<String, List<StudentProfile>> groups = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            String roomNo = (String) row.get("roomNo");
+            if (roomNo == null) continue;
+            String prefix = roomNo.replaceAll(" · \\d+号床.*$", "");
+            groups.computeIfAbsent(prefix, k -> new ArrayList<>()).add(StudentProfile.fromMap(row));
+        }
+
+        List<Map<String, Object>> roomList = new ArrayList<>();
+        for (Map.Entry<String, List<StudentProfile>> entry : groups.entrySet()) {
+            Map<String, Object> rm = new LinkedHashMap<>();
+            rm.put("roomNo", entry.getKey());
+            rm.put("capacity", entry.getValue().size() > 4 ? 6 : 4);
+            List<Map<String, Object>> memberList = new ArrayList<>();
+            int totalScore = 0, pairCount = 0;
+            for (StudentProfile m : entry.getValue()) {
+                Map<String, Object> mb = new LinkedHashMap<>();
+                mb.put("id", m.id);
+                mb.put("realName", m.realName);
+                mb.put("majorClass", m.majorClass);
+                mb.put("sleepHabit", m.sleepHabit);
+                mb.put("smoking", m.smoking);
+                mb.put("cleanliness", m.cleanliness);
+                mb.put("gaming", m.gaming);
+                memberList.add(mb);
+                for (StudentProfile other : entry.getValue()) {
+                    if (!m.id.equals(other.id)) {
+                        totalScore += compatibilityScore(m, other);
+                        pairCount++;
+                    }
+                }
+            }
+            rm.put("members", memberList);
+            rm.put("avgCompatibility", pairCount > 0 ? totalScore / pairCount : 100);
+            roomList.add(rm);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("rooms", roomList);
+        return result;
+    }
+
+    // -- Compute pairwise compatibility heatmap for all unassigned students --
+    public Map<String, Object> computeHeatmap() {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "SELECT id,real_name AS realName,gender,major_class AS majorClass," +
+            "sleep_habit AS sleepHabit,smoking,hobbies,cleanliness,gaming,snoring," +
+            "return_time AS returnTime,noise_tolerance AS noiseTolerance," +
+            "preferred_room_type AS preferredRoomType " +
+            "FROM sys_user WHERE role='student' AND room_no IS NULL");
+
+        List<StudentProfile> students = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            StudentProfile sp = StudentProfile.fromMap(row);
+            if (sp.gender != null) students.add(sp);
+        }
+
+        List<Map<String, Object>> labels = new ArrayList<>();
+        for (StudentProfile s : students) {
+            Map<String, Object> label = new LinkedHashMap<>();
+            label.put("id", s.id);
+            label.put("name", s.realName);
+            label.put("majorClass", s.majorClass);
+            labels.add(label);
+        }
+
+        List<List<Integer>> matrix = new ArrayList<>();
+        for (int i = 0; i < students.size(); i++) {
+            List<Integer> row = new ArrayList<>();
+            for (int j = 0; j < students.size(); j++) {
+                if (i == j) {
+                    row.add(100);
+                } else {
+                    row.add(compatibilityScore(students.get(i), students.get(j)));
+                }
+            }
+            matrix.add(row);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("labels", labels);
+        result.put("matrix", matrix);
+        return result;
+    }
+
     // -- Full pipeline: execute both phases --
     public Map<String, Object> executeAssignment() {
         // Fetch all unassigned students (room_no is NULL) with complete profiles
