@@ -1,6 +1,7 @@
 <template>
   <section v-if="!currentUser" class="login-page">
-    <div class="login-card">
+    <!-- Login card -->
+    <div v-if="!showRegister" class="login-card">
       <div class="login-logo">
         <div class="app-icon">⌂</div>
         <div>
@@ -23,10 +24,17 @@
         <button @click="useDemo('admin')">管理员端</button>
         <button @click="useDemo('dormkeeper')">宿管端</button>
       </div>
+      <p class="register-link">
+        还没有账号？<a href="#" @click.prevent="showRegister = true">立即注册</a>
+      </p>
     </div>
+
+    <!-- Register card -->
+    <RegisterForm v-else @registered="onRegistered" @back="showRegister = false" />
   </section>
 
   <section v-else class="student-shell">
+    <ProfileCompletionModal v-if="showProfileModal" @completed="onProfileCompleted" />
     <aside class="side-menu">
       <div class="menu-brand">
         <button class="collapse-btn">☰</button>
@@ -110,8 +118,8 @@
         <MyDorm
           :roommates="roommates"
           :dorm-name="currentUser.roomNo || '未分配宿舍'"
-          :bed-count="4"
-          :occupancy-status="roommates.length >= 4 ? '已住满' : '空' + (4 - roommates.length) + '床'"
+          :bed-count="roommates.length > 4 ? 6 : 4"
+          :occupancy-status="roommates.length >= (roommates.length > 4 ? 6 : 4) ? '已住满' : '空' + ((roommates.length > 4 ? 6 : 4) - roommates.length) + '床'"
           :my-bed="myBedNumber"
           :checkin-date="'2025/9/1'"
           :dorm-keeper="dormKeeperName"
@@ -172,6 +180,11 @@
         <RoomManage />
       </template>
 
+      <!-- Smart Assignment (admin) -->
+      <template v-else-if="activeMenu && activeMenu.key === 'assignment'">
+        <SmartAssignment />
+      </template>
+
       <!-- Generic Record List (repair, fee, visitor, announcement, etc.) -->
       <template v-else-if="activeMenu">
         <RecordList
@@ -217,24 +230,22 @@ import TransferPage from './components/TransferPage.vue'
 import RatingPage from './components/RatingPage.vue'
 import CheckinManage from './components/CheckinManage.vue'
 import RoomManage from './components/RoomManage.vue'
+import RegisterForm from './components/RegisterForm.vue'
+import ProfileCompletionModal from './components/ProfileCompletionModal.vue'
+import SmartAssignment from './components/SmartAssignment.vue'
 import { getVisibleMenus, getMenuByKey, roleLabel, categoryName, needsRecords, isTodoStatus } from './router.js'
-import { login as apiLogin, logout as apiLogout, fetchDashboard, fetchRecords, createRecord, updateRecord, deleteRecord, fetchWeather } from './api.js'
-
-const roommates = [
-  { name: '林如海', bed: '1号床', tag: '', status: '在寝', avatar: '林', color: '#8097bd', role: 'student' },
-  { name: '邱子健', bed: '2号床', tag: '我', status: '在寝', avatar: '邱', color: '#4b8fe8', role: 'student' },
-  { name: '秦兴睿', bed: '3号床', tag: '', status: '在寝', avatar: '秦', color: '#b58d7f', role: 'student' },
-  { name: '陈家和', bed: '4号床', tag: '', status: '在寝', avatar: '陈', color: '#8798a7', role: 'student' }
-]
+import { login as apiLogin, logout as apiLogout, fetchDashboard, fetchRecords, createRecord, updateRecord, deleteRecord, fetchWeather, fetchUsers } from './api.js'
 
 export default {
   name: 'App',
-  components: { StudentDashboard, MyDorm, AdminDashboard, AiChat, AccountSettings, RecordList, ChatView, VisitorPage, TransferPage, RatingPage, CheckinManage, RoomManage },
+  components: { StudentDashboard, MyDorm, AdminDashboard, AiChat, AccountSettings, RecordList, ChatView, VisitorPage, TransferPage, RatingPage, CheckinManage, RoomManage, RegisterForm, ProfileCompletionModal, SmartAssignment },
   data() {
     return {
       currentUser: JSON.parse(sessionStorage.getItem('dorm-user') || 'null'),
       loginForm: { username: 'student', password: '123456' },
       loginMessage: '',
+      showRegister: false,
+      showProfileModal: false,
       activeMenu: null,
       menuOpen: false,
       stats: {},
@@ -244,15 +255,16 @@ export default {
       editingRecord: null,
       now: new Date(),
       weatherText: '加载中...',
-      roommates
+      roommates: []
     }
   },
   computed: {
     visibleMenus() {
-      return this.currentUser ? getVisibleMenus(this.currentUser.role) : []
+      const hasDorm = this.currentUser && this.currentUser.roomNo && this.currentUser.roomNo !== 'null'
+      return this.currentUser ? getVisibleMenus(this.currentUser.role, hasDorm) : []
     },
     displayName() {
-      return this.currentUser && this.currentUser.role === 'student' ? '邱子健' : this.currentUser.realName
+      return this.currentUser ? this.currentUser.realName : ''
     },
     userInitial() {
       return this.displayName ? this.displayName.slice(0, 1) : '用'
@@ -319,7 +331,11 @@ export default {
         this.currentUser = user
         sessionStorage.setItem('dorm-user', JSON.stringify(user))
         this.loginMessage = ''
-        this.selectMenu(getVisibleMenus(user.role)[0])
+        if (user.profileComplete === false) {
+          this.showProfileModal = true
+          return
+        }
+        this.selectMenu(getVisibleMenus(user.role, !!user.roomNo)[0])
       } catch (error) {
         this.loginMessage = error.message
       }
@@ -367,16 +383,24 @@ export default {
         const hygieneRecords = hygieneData.rows || []
 
         const myRoom = this.currentUser.roomNo || ''
-        // Filter repair records for this student's room
-        const myRepairs = repairs.filter(r => r.owner === this.displayName || r.location.includes(myRoom.split('·')[0]?.trim() || ''))
-        // Filter fee records for this student
-        const myFees = fees.filter(f => f.owner === this.displayName || f.location.includes(myRoom.split('·')[0]?.trim() || ''))
+        // Extract exact room: "芙蓉楼3 · 519室 · 2号床" → "芙蓉楼3 · 519室"
+        const roomMatch = myRoom.match(/^(.+室)/)
+        const exactRoom = roomMatch ? roomMatch[1] : ''
+
+        // Filter by owner only when no room; by owner+room when assigned
+        const isMyRecord = (r) => {
+          if (r.owner === this.displayName) return true
+          if (exactRoom && r.location && r.location.includes(exactRoom)) return true
+          return false
+        }
+
+        const myRepairs = repairs.filter(isMyRecord)
+        const myFees = fees.filter(isMyRecord)
         const unpaidFees = myFees.filter(f => f.status === '待缴费')
         const totalUnpaid = unpaidFees.reduce((sum, f) => sum + (f.amount || 0), 0)
 
-        // Get the latest hygiene score for this room
         const myHygiene = hygieneRecords
-          .filter(h => h.location.includes(myRoom.split('·')[0]?.trim() || ''))
+          .filter(h => exactRoom && h.location && h.location.includes(exactRoom))
           .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
         const latestHygiene = myHygiene[0]
 
@@ -384,9 +408,28 @@ export default {
           announcements,
           repairCount: myRepairs.length,
           feeTotal: totalUnpaid > 0 ? `¥ ${totalUnpaid.toFixed(2)} (待缴)` : '¥ 0.00',
-          hygieneScore: latestHygiene ? parseInt(latestHygiene.content.match(/\d+/) || '0') : 95,
-          rank: '第 12 名',
-          lastCheck: latestHygiene ? latestHygiene.status : '优秀'
+          hygieneScore: latestHygiene ? parseInt(latestHygiene.content.match(/\d+/) || '0') : 0,
+          rank: latestHygiene ? '第 12 名' : '-',
+          lastCheck: latestHygiene ? latestHygiene.status : '暂无'
+        }
+
+        // Load dynamic roommates from same room
+        const allUsers = await fetchUsers('', 1, 200)
+        const allStudents = (allUsers.rows || []).filter(u => u.role === 'student')
+        if (exactRoom) {
+          this.roommates = allStudents
+            .filter(u => u.roomNo && u.roomNo.startsWith(exactRoom))
+            .map(u => ({
+              name: u.realName,
+              bed: (u.roomNo || '').match(/(\d+号床)/)?.[0] || '-',
+              tag: u.id === this.currentUser.id ? '我' : '',
+              status: '在寝',
+              avatar: (u.realName || '?').slice(0, 1),
+              color: '#8097bd',
+              role: 'student'
+            }))
+        } else {
+          this.roommates = []
         }
       } catch (e) {
         // Silently fail — keep defaults
@@ -433,6 +476,17 @@ export default {
       const values = (this.stats.categories || []).map(item => item.value)
       const max = Math.max(...values, 1)
       return `${Math.max(8, value / max * 100)}%`
+    },
+    onRegistered(user) {
+      this.currentUser = user
+      sessionStorage.setItem('dorm-user', JSON.stringify(user))
+      this.showRegister = false
+      this.selectMenu(getVisibleMenus(user.role)[0])
+    },
+    onProfileCompleted() {
+      this.showProfileModal = false
+      this.currentUser = JSON.parse(sessionStorage.getItem('dorm-user') || 'null')
+      this.selectMenu(this.visibleMenus[0])
     }
   }
 }

@@ -83,13 +83,21 @@ export default {
   },
   computed: {
     bedRows() {
-      const r = this.roommates
+      const r = [...this.roommates].sort((a, b) => {
+        const na = parseInt((a.bed || '').match(/\d+/)?.[0] || '0')
+        const nb = parseInt((b.bed || '').match(/\d+/)?.[0] || '0')
+        return na - nb
+      })
       if (r.length >= 4) {
-        // Layout: Row1 (near door): 4号 | 1号, Row2 (near balcony): 3号 | 2号
-        return [
-          [r[3], r[0]],
-          [r[2], r[1]]
-        ]
+        // Layout: Door at top. Left column: highest beds (top→bottom), Right column: lowest beds (top→bottom)
+        // 4-person: [4,1] / [3,2]
+        // 6-person: [6,1] / [5,2] / [4,3]
+        const rows = []
+        const half = Math.ceil(r.length / 2)
+        for (let i = 0; i < half; i++) {
+          rows.push([r[r.length - 1 - i], r[i]])
+        }
+        return rows
       }
       const rows = []
       for (let i = 0; i < r.length; i += 2) {

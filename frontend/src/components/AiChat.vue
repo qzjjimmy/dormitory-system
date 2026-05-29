@@ -71,7 +71,7 @@
 <script>
 import { askAi } from '../api.js'
 
-const STORAGE_KEY = 'dorm-ai-history'
+const STORAGE_PREFIX = 'dorm-ai-history-'
 
 const DEFAULT_SUGGESTIONS = [
   { title: '宿舍报修流程怎么提交？', meta: '进入报修申请，填写问题类型、位置和联系电话即可。' },
@@ -80,17 +80,21 @@ const DEFAULT_SUGGESTIONS = [
   { title: '帮我生成一份空调报修说明', meta: 'AI 会帮你生成规范的报修内容。' }
 ]
 
-function loadHistory() {
+function storageKey(userId) {
+  return STORAGE_PREFIX + userId
+}
+
+function loadHistory(userId) {
   try {
-    const data = localStorage.getItem(STORAGE_KEY)
+    const data = localStorage.getItem(storageKey(userId))
     return data ? JSON.parse(data) : []
   } catch (e) {
     return []
   }
 }
 
-function saveHistory(conversations) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations))
+function saveHistory(userId, conversations) {
+  localStorage.setItem(storageKey(userId), JSON.stringify(conversations))
 }
 
 export default {
@@ -99,9 +103,11 @@ export default {
     userInitial: { type: String, default: '用' }
   },
   data() {
-    const saved = loadHistory()
+    const userId = this.getUserId()
+    const saved = loadHistory(userId)
     const hasSaved = saved.length > 0
     return {
+      userId,
       currentIndex: 0,
       conversations: hasSaved ? saved : [
         {
@@ -126,6 +132,10 @@ export default {
     }
   },
   methods: {
+    getUserId() {
+      const user = JSON.parse(sessionStorage.getItem('dorm-user') || '{}')
+      return user.id || 0
+    },
     newConversation() {
       this.conversations.unshift({
         title: '新对话',
@@ -160,7 +170,6 @@ export default {
       if (!conv) return
 
       conv.messages.push({ role: 'user', text })
-      // Auto-title using first user message
       if (conv.title === '新对话') {
         conv.title = text.length > 20 ? text.slice(0, 18) + '…' : text
       }
@@ -193,7 +202,7 @@ export default {
       return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
     },
     save() {
-      saveHistory(this.conversations)
+      saveHistory(this.userId, this.conversations)
     }
   },
   mounted() {

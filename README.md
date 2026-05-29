@@ -1,6 +1,6 @@
 # 学生宿舍管理系统
 
-根据视频页面信息和截图复刻的 Spring Boot + Vue + MySQL 毕设项目，包含学生端、管理员端、宿管员端。前后端分离：后端提供 REST API（Token 鉴权），前端由 Vite 独立运行。
+基于 Spring Boot + Vue 3 + MySQL 的智慧宿舍管理毕设项目，含学生端、管理员端、宿管员端。前后端分离，集成 DeepSeek AI 问答、WebSocket 实时通讯、**智能宿舍分配算法**。
 
 ## 本机环境适配
 
@@ -72,6 +72,19 @@ Vite 已配置代理，前端请求 `/api` 会自动转发到 `http://localhost:
 - 宿管员端：工作台、入住登记、报修处理、访客登记、卫生检查、晚归登记、物品出入、消息通知、个人中心
 
 AI 智能问答已接入 DeepSeek API（deepseek-chat 模型），`application.properties` 中已配置 key。API 调用失败时自动降级为本地回复。首页实时天气通过 wttr.in 免费 API 获取福州市连江县天气数据。
+
+## 智能宿舍分配算法
+
+系统实现了基于多特征兼容性评分的两阶段贪心匹配算法：
+
+1. **新生注册**：学生在登录页自主注册，填写性别、专业班级、作息习惯、是否抽烟、兴趣爱好等 10 项特征
+2. **阶段一（同班优先）**：按专业班级分组，组内用兼容性评分两两配对，4/6人间逐间填满
+3. **阶段二（跨班补位）**：收集空床位，贪心匹配最高兼容度的待分配学生
+4. **调宿推荐**：计算与目标宿舍成员的兼容度，返回 Top-3 推荐
+
+管理员在"智能分配"页面一键运行算法，查看分配结果矩阵和兼容度均分，确认后写入数据库。
+
+**涉及文件**：`RoomAssignmentService.java`、`AssignmentController.java`、`SmartAssignment.vue`、`RegisterForm.vue`、`ProfileCompletionModal.vue`
 
 ## 样式说明
 

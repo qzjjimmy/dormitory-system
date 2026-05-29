@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @RestController
@@ -49,5 +50,18 @@ public class UserController {
     public ApiResponse<String> delete(@PathVariable Long id) {
         userService.delete(id);
         return ApiResponse.ok("deleted");
+    }
+
+    @PutMapping("/profile")
+    public ApiResponse<String> updateProfile(@RequestBody Map<String, String> profile, HttpServletRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> currentUser = (Map<String, Object>) request.getAttribute("currentUser");
+        String role = (String) currentUser.get("role");
+        if (!"student".equals(role)) {
+            return ApiResponse.fail("仅学生可更新个人特征");
+        }
+        Long userId = ((Number) currentUser.get("id")).longValue();
+        userService.updateProfile(userId, profile);
+        return ApiResponse.ok("特征更新成功");
     }
 }

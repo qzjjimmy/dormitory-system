@@ -45,4 +45,25 @@ public class AuthController {
         }
         return ApiResponse.ok("logged out");
     }
+
+    @PostMapping("/register")
+    public ApiResponse<Map<String, Object>> register(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String password = request.get("password");
+        String realName = request.get("realName");
+        if (username == null || username.trim().isEmpty()
+                || password == null || password.trim().isEmpty()
+                || realName == null || realName.trim().isEmpty()) {
+            return ApiResponse.fail("用户名、密码、姓名不能为空");
+        }
+        request.put("role", "student");
+        request.put("roomNo", null);
+        userService.create(request);
+        // Auto-login after registration
+        Map<String, Object> user = userService.login(username, password);
+        String token = tokenStore.createToken(user);
+        Map<String, Object> result = new HashMap<>(user);
+        result.put("token", token);
+        return ApiResponse.ok(result);
+    }
 }

@@ -2,7 +2,7 @@
   <div class="student-dashboard">
     <section class="welcome-row">
       <div>
-        <h1>早安，{{ displayName }}</h1>
+        <h1>你好，{{ displayName }}</h1>
         <p>{{ beijingDateText }}，开启高效的一天吧！</p>
       </div>
       <div class="weather">☔ <b>{{ weatherText }}</b></div>

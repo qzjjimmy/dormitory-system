@@ -22,7 +22,7 @@
 **已完成内容**：
 - 新增 `common/TokenStore.java` — ConcurrentHashMap 管理 token→user
 - 新增 `interceptor/LoginInterceptor.java` — 拦截 `/api/**`，校验 `Authorization: Bearer <token>`
-- 新增 `config/WebConfig.java` — 注册拦截器，排除 `/api/auth/login`
+- 新增 `config/WebConfig.java` — 注册拦截器，排除 `/api/auth/login`、`/api/auth/register`
 - `AuthController.login()` 返回 token，新增 `/api/auth/logout` 端点
 - 前端 `api.js` 请求自动携带 token，401 自动登出
 - 前端认证失败时直接报错，去除离线 fallback
@@ -87,6 +87,18 @@ erDiagram
         VARCHAR role
         VARCHAR phone
         VARCHAR room_no
+        VARCHAR gender
+        VARCHAR major_class
+        VARCHAR sleep_habit
+        VARCHAR smoking
+        VARCHAR hobbies
+        VARCHAR cleanliness
+        VARCHAR gaming
+        VARCHAR snoring
+        VARCHAR return_time
+        VARCHAR noise_tolerance
+        VARCHAR preferred_room_type
+        VARCHAR preferred_bed
         TIMESTAMP created_at
     }
 ```
@@ -198,6 +210,7 @@ dist/
 | P3 | Swagger | 引入 springdoc-openapi | ⏳ |
 | P3 | Vue-Router | 前端路由改造 | ⏳ |
 | P3 | AOP 日志 | 新增切面 | ⏳ |
+| P2 | 智能宿舍分配算法 | 新增 `RoomAssignmentService.java`, `AssignmentController.java`, `SmartAssignment.vue`, `RegisterForm.vue`, `ProfileCompletionModal.vue` 等 | ✅ |
 
 ---
 
@@ -228,7 +241,7 @@ dist/
 
 ---
 
-### 方案一：智能宿舍分配算法（推荐 ⭐⭐⭐⭐⭐）
+### 方案一：智能宿舍分配算法 ✅ 已完成（推荐 ⭐⭐⭐⭐⭐）
 
 **简介**：新生入学或调宿时，系统根据学生特征自动推荐最优宿舍分配方案。
 
@@ -239,10 +252,14 @@ dist/
 - 宿舍约束：每间容量、已占用床位、楼层/朝向偏好
 
 **实现方式**：
-1. 新增 `sys_user` 字段：`sleep_time`（早/晚）、`smoking`（是/否）
-2. 新增 `RoomAssignmentService`，计算学生间兼容性得分（余弦相似度）
-3. 用贪心算法或匈牙利算法求解最优分配
-4. 前端新增"智能分配"页面，展示分配结果及匹配度
+1. 新增 `sys_user` 10 个特征字段：`gender`、`major_class`、`sleep_habit`、`smoking`、`hobbies`、`cleanliness`、`gaming`、`snoring`、`return_time`、`noise_tolerance`，以及 `preferred_room_type`、`preferred_bed` 偏好字段
+2. 新增 `RoomAssignmentService`，实现两阶段贪心匹配算法：阶段一同班优先按兼容性评分分配，阶段二跨班补位
+3. 兼容性评分模型：性别硬约束 + 专业班级阶段一硬约束 + 10 维特征加权（作息25/抽烟20/卫生15/游戏10/打鼾10/返回时间10/噪音5/兴趣5）
+4. 登录页新增学生自主注册（两页表单：账号信息 + 特征信息）
+5. 老用户首次登录强制补全特征弹窗
+6. 前端新增"智能分配"页面（admin）：批量分配结果矩阵 + 调宿 Top-3 推荐 + 一键确认写入数据库
+7. 支持 4人间/6人间选择，算法根据偏好创建不同容量宿舍，同类型满了才跨类型
+8. 未分配学生菜单仅可见公告/AI/通话/设置；通话仅含管理员和宿管；AI 对话按用户隔离
 
 **论文可写**：3.2 智能分配算法设计（问题建模 + 贪心算法 + 匈牙利算法对比）+ 5.X 算法实现与实验
 

@@ -20,13 +20,23 @@ public class ChatService {
     public List<Map<String, Object>> getContacts(Long userId) {
         String userRoom = jdbcTemplate.queryForObject(
                 "SELECT room_no FROM sys_user WHERE id=?", String.class, userId);
-        String building = userRoom != null ? userRoom.replaceAll("\\d+室.*", "").trim() : "";
 
+        if (userRoom == null) {
+            // Unassigned student: show admin and dormkeepers only
+            return jdbcTemplate.queryForList(
+                    "SELECT id, real_name AS realName, role, room_no AS roomNo, phone, " +
+                            "CASE WHEN role='admin' THEN 0 ELSE 1 END AS sort_order " +
+                            "FROM sys_user WHERE role IN ('admin','dormkeeper') ORDER BY sort_order, id");
+        }
+
+        // Assigned student: show roommates (same room prefix) + admin + dormkeepers
+        String roomPrefix = userRoom.replaceAll(" · \\d+号床.*$", "").trim();
         return jdbcTemplate.queryForList(
                 "SELECT id, real_name AS realName, role, room_no AS roomNo, phone, " +
-                        "CASE WHEN room_no LIKE ? THEN 0 WHEN role='dormkeeper' THEN 1 ELSE 2 END AS sort_order " +
-                        "FROM sys_user WHERE id != ? ORDER BY sort_order, id",
-                building + "%", userId);
+                        "CASE WHEN room_no LIKE ? THEN 0 WHEN role='dormkeeper' THEN 1 WHEN role='admin' THEN 2 ELSE 3 END AS sort_order " +
+                        "FROM sys_user WHERE id != ? AND (room_no LIKE ? OR role IN ('admin','dormkeeper')) " +
+                        "ORDER BY sort_order, id",
+                roomPrefix + "%", userId, roomPrefix + "%");
     }
 
     public List<Map<String, Object>> getMessages(Long userId, Long withUserId) {

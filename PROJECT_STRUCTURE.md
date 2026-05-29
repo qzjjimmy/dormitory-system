@@ -12,6 +12,12 @@ dormitory-system/
 ├── PROJECT_STRUCTURE.md                     # 本文档
 ├── PROJECT_FEATURES.md                      # 功能文档
 ├── IMPROVEMENTS.md                          # 改进建议（含完成状态）
+├── docs/
+│   └── superpowers/
+│       ├── specs/
+│       │   └── 2026-05-29-smart-dorm-assignment-design.md  # 智能分配算法设计文档
+│       └── plans/
+│           └── 2026-05-29-smart-dorm-assignment-plan.md   # 智能分配算法实现计划
 ├── src/main/
 │   ├── java/com/bishe/dormitory/
 │   │   ├── DormitorySystemApplication.java  # Spring Boot 入口
@@ -33,13 +39,15 @@ dormitory-system/
 │   │   │   ├── UserController.java          # 用户管理接口（已接入分页）
 │   │   │   ├── AiController.java            # AI 对话接口 (DeepSeek API)
 │   │   │   ├── ChatController.java          # 即时通讯 REST 接口
+│   │   │   ├── AssignmentController.java     # 智能分配接口 (run/recommend/confirm)
 │   │   │   └── WeatherController.java       # 实时天气接口 (wttr.in)
 │   │   ├── interceptor/
 │   │   │   └── LoginInterceptor.java        # 登录拦截器（Bearer Token 校验）
 │   │   ├── service/
 │   │   │   ├── RecordService.java           # 业务记录逻辑（已接入分页 LIMIT/OFFSET）
-│   │   │   ├── UserService.java             # 用户管理逻辑（BCrypt 密码 + 分页）
-│   │   │   └── ChatService.java             # 聊天消息逻辑
+│   │   │   ├── UserService.java             # 用户管理逻辑（BCrypt 密码 + 分页 + 特征 + 注册）
+│   │   │   ├── ChatService.java             # 聊天消息逻辑
+│   │   │   └── RoomAssignmentService.java   # 智能宿舍分配算法（两阶段贪心匹配 + 调宿推荐）
 │   │   ├── model/
 │   │   │   ├── SysUser.java                 # 系统用户实体
 │   │   │   └── BizRecord.java               # 业务记录实体
@@ -66,8 +74,11 @@ dormitory-system/
             ├── AdminDashboard.vue           # 管理端控制台
             ├── RecordList.vue               # 通用记录列表 (表格+CRUD)
             ├── AccountSettings.vue          # 账户设置
-            ├── AiChat.vue                   # AI 智能助手 (多轮对话+历史)
+            ├── AiChat.vue                   # AI 智能助手 (多轮对话+历史，按用户隔离)
             ├── ChatView.vue                 # WebSocket 即时通讯
+            ├── RegisterForm.vue             # 新生注册（两页表单 + 特征采集）
+            ├── ProfileCompletionModal.vue   # 老用户特征补全弹窗
+            ├── SmartAssignment.vue          # 智能宿舍分配（管理员：矩阵 + 调宿推荐）
             ├── RatingPage.vue               # 服务评价
             ├── VisitorPage.vue              # 访客预约
             ├── TransferPage.vue             # 调宿申请
@@ -112,7 +123,7 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 |------|------|
 | `CorsConfig.java` | CORS 跨域配置，允许前端 `localhost:5173` 请求后端 `/api/**` 路径 |
 | `DatabaseInitializer.java` | 实现 `CommandLineRunner`，启动时自动建表并插入种子数据（7 个用户 + 100+ 条业务记录 + 聊天消息）。用户密码采用 BCrypt 加密，聊天消息采用幂等判断避免重复插入 |
-| `WebConfig.java` | 注册 `LoginInterceptor`，拦截 `/api/**` 路径，排除 `/api/auth/login` |
+| `WebConfig.java` | 注册 `LoginInterceptor`，拦截 `/api/**` 路径，排除 `/api/auth/login`、`/api/auth/register` |
 | `WebSocketConfig.java` | 注册 WebSocket 端点 `/ws/chat`，绑定 `ChatWebSocketHandler` |
 
 ### common — 公共组件
@@ -134,7 +145,7 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 
 | 文件 | 路径 | 说明 |
 |------|------|------|
-| `AuthController.java` | `POST /api/auth/login`, `/api/auth/logout` | 登录验证（BCrypt + 签发 token + 参数空值校验），登出清除 token |
+| `AuthController.java` | `POST /api/auth/login`, `/api/auth/logout`, `/api/auth/register` | 登录验证（BCrypt + 签发 token + 参数空值校验），登出清除 token，注册自动登录 |
 | `DashboardController.java` | `GET /api/dashboard` | 控制台统计，调用 `RecordService.dashboard()` |
 | `HealthController.java` | `GET /api/health` | 健康检查，验证数据库连接状态 |
 | `RecordController.java` | `GET/POST/PUT/DELETE /api/records` | 业务记录 CRUD，支持分页参数 page/size，调用 `RecordService` |
@@ -142,20 +153,22 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 | `AiController.java` | `POST /api/ai/chat` | AI 对话，对接 DeepSeek API（真实调用，key 降级自动走本地回复） |
 | `ChatController.java` | `GET/POST /api/chat/*` | 即时通讯 REST API，调用 `ChatService`，发送后通过 `ChatWebSocketHandler` 推送 |
 | `WeatherController.java` | `GET /api/weather` | 通过 wttr.in 免费 API 实时获取福州市连江县天气，无需登录 |
+| `AssignmentController.java` | `POST /api/assignment/run`, `GET /api/assignment/recommend/{id}`, `POST /api/assignment/confirm` | 智能宿舍分配：运行分配算法、调宿推荐、确认分配写入数据库 |
 
 ### service — 业务层
 
 | 文件 | 对应表 | 主要方法 |
 |------|--------|----------|
 | `RecordService.java` | `biz_record` | `list(category, keyword, page, size)` → `PageResult` / `create(record)` / `update(id, record)` / `delete(id)` / `dashboard()` / `validateRecord(record)` |
-| `UserService.java` | `sys_user` | `login(username, password)` 使用 BCrypt 验证 + 自动升级明文密码 / `list(keyword, page, size)` → `PageResult` / `create(user)` BCrypt 加密 / `update(id, user)` / `delete(id)` / `validateUser(user, isCreate)` |
-| `ChatService.java` | `chat_message` | `getContacts(userId)` / `getMessages(userId, withUserId)` / `markAsRead(userId, fromUserId)` / `getUnreadCounts(userId)` / `sendMessage(from, to, content)` |
+| `UserService.java` | `sys_user` | `login(username, password)` 使用 BCrypt 验证 + 自动升级明文密码 + 返回 profileComplete / `list(keyword, page, size)` → `PageResult` / `create(user)` BCrypt 加密含 12 特征字段 / `update(id, user)` / `delete(id)` / `updateProfile(userId, profile)` / `validateUser(user, isCreate)` |
+| `ChatService.java` | `chat_message` | `getContacts(userId)` 未分配学生仅见管理员/宿管，分配后显示室友 / `getMessages(userId, withUserId)` / `markAsRead(userId, fromUserId)` / `getUnreadCounts(userId)` / `sendMessage(from, to, content)` |
+| `RoomAssignmentService.java` | — | `executeAssignment()` 两阶段贪心分配 / `recommendTransfer(studentId)` Top-3 调宿推荐 / `confirmAssignment(assignments)` 写入 room_no / `compatibilityScore(a, b)` 10 维加权评分 |
 
 ### model — 实体
 
 | 文件 | 对应表 | 字段 |
 |------|--------|------|
-| `SysUser.java` | `sys_user` | id / username / password / realName / role / phone / roomNo / createdAt |
+| `SysUser.java` | `sys_user` | id / username / password / realName / role / phone / roomNo / gender / majorClass / sleepHabit / smoking / hobbies / cleanliness / gaming / snoring / returnTime / noiseTolerance / preferredRoomType / preferredBed / createdAt |
 | `BizRecord.java` | `biz_record` | id / category / title / owner / location / amount / status / content / createdAt / updatedAt |
 
 ### websocket — 即时通讯
@@ -205,9 +218,12 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 | `MyDorm.vue` | 学生 | 我的宿舍：宿舍信息、室友列表、床位布局、设施状态+卫生评分合并卡片 |
 | `AdminDashboard.vue` | 管理员/宿管 | 控制台：统计卡片 + 分类柱状图 |
 | `RecordList.vue` | 通用 | 通用列表：搜索框 + 数据表格 + 新增/编辑弹窗表单 + 删除 |
-| `AccountSettings.vue` | 全部 | 账户设置：只读展示个人信息 |
-| `AiChat.vue` | 学生 | AI 助手：左侧对话历史 + 中间多轮消息气泡 + 右侧建议面板，历史持久化 localStorage |
-| `ChatView.vue` | 全部 | 即时通讯：联系人列表 + WebSocket 实时消息 + 未读角标 |
+| `AccountSettings.vue` | 全部 | 账户设置：基本信息只读展示，仅电话可编辑，学生特征卡片网格展示 |
+| `AiChat.vue` | 学生 | AI 助手：左侧对话历史 + 中间多轮消息气泡 + 右侧建议面板，历史按用户 ID 隔离 localStorage |
+| `ChatView.vue` | 全部 | 即时通讯：联系人列表（未分配仅见管理员/宿管）+ WebSocket 实时消息 + 未读角标 |
+| `RegisterForm.vue` | 学生（登录页） | 新生注册：两页表单（账号 + 10 特征）+ 房间/床位偏好选择 |
+| `ProfileCompletionModal.vue` | 学生 | 老用户首次登录强制补全特征弹窗，不可跳过 |
+| `SmartAssignment.vue` | 管理员 | 智能分配：分配结果矩阵（含兼容度均分）+ 调宿 Top-3 推荐 + 确认写入 |
 | `RatingPage.vue` | 学生 | 服务评价：综合评分圆环 + 评价记录 + 提交表单 |
 | `VisitorPage.vue` | 学生 | 访客预约：记录表格 + 点击展开预约表单 |
 | `TransferPage.vue` | 学生 | 调宿申请：记录表格 + 点击展开申请表 |

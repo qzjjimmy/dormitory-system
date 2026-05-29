@@ -19,7 +19,11 @@ public class UserService {
 
     public Map<String, Object> login(String username, String password) {
         List<Map<String, Object>> users = jdbcTemplate.queryForList(
-                "SELECT id,username,password,real_name AS realName,role,phone,room_no AS roomNo FROM sys_user WHERE username=?",
+                "SELECT id,username,password,real_name AS realName,role,phone,room_no AS roomNo," +
+                "gender,major_class AS majorClass,sleep_habit AS sleepHabit,smoking,hobbies," +
+                "cleanliness,gaming,snoring,return_time AS returnTime,noise_tolerance AS noiseTolerance," +
+                "preferred_room_type AS preferredRoomType,preferred_bed AS preferredBed " +
+                "FROM sys_user WHERE username=?",
                 username);
         if (users.isEmpty()) {
             throw new IllegalArgumentException("账号或密码错误");
@@ -46,6 +50,19 @@ public class UserService {
 
         // Remove password field before returning to frontend
         user.remove("password");
+
+        // Check profile completeness for students
+        String role = (String) user.get("role");
+        boolean profileComplete = true;
+        if ("student".equals(role)) {
+            profileComplete = user.get("gender") != null && user.get("sleepHabit") != null
+                && user.get("smoking") != null && user.get("hobbies") != null
+                && user.get("cleanliness") != null && user.get("gaming") != null
+                && user.get("snoring") != null && user.get("returnTime") != null
+                && user.get("noiseTolerance") != null && user.get("majorClass") != null;
+        }
+        user.put("profileComplete", profileComplete);
+
         return user;
     }
 
@@ -54,13 +71,21 @@ public class UserService {
         int offset = (page - 1) * size;
         if (keyword == null || keyword.isEmpty()) {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT id,username,real_name AS realName,role,phone,room_no AS roomNo,created_at AS createdAt FROM sys_user ORDER BY id DESC LIMIT ? OFFSET ?",
+                    "SELECT id,username,real_name AS realName,role,phone,room_no AS roomNo,created_at AS createdAt," +
+                    "gender,major_class AS majorClass,sleep_habit AS sleepHabit,smoking,hobbies," +
+                    "cleanliness,gaming,snoring,return_time AS returnTime,noise_tolerance AS noiseTolerance," +
+                    "preferred_room_type AS preferredRoomType,preferred_bed AS preferredBed " +
+                    "FROM sys_user ORDER BY id DESC LIMIT ? OFFSET ?",
                     size, offset);
             Long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sys_user", Long.class);
             return new PageResult<>(rows, total != null ? total : 0, page, size).toMap();
         }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id,username,real_name AS realName,role,phone,room_no AS roomNo,created_at AS createdAt FROM sys_user WHERE username LIKE ? OR real_name LIKE ? OR role LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?",
+                "SELECT id,username,real_name AS realName,role,phone,room_no AS roomNo,created_at AS createdAt," +
+                "gender,major_class AS majorClass,sleep_habit AS sleepHabit,smoking,hobbies," +
+                "cleanliness,gaming,snoring,return_time AS returnTime,noise_tolerance AS noiseTolerance," +
+                "preferred_room_type AS preferredRoomType,preferred_bed AS preferredBed " +
+                "FROM sys_user WHERE username LIKE ? OR real_name LIKE ? OR role LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?",
                 like, like, like, size, offset);
         Long total = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sys_user WHERE username LIKE ? OR real_name LIKE ? OR role LIKE ?",
@@ -69,10 +94,22 @@ public class UserService {
     }
 
     public void create(Map<String, String> user) {
+        String username = user.get("username");
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sys_user WHERE username=?", Integer.class, username);
+        if (count != null && count > 0) {
+            throw new IllegalArgumentException("用户名已存在");
+        }
         String rawPassword = user.getOrDefault("password", "123456");
-        jdbcTemplate.update("INSERT INTO sys_user(username,password,real_name,role,phone,room_no) VALUES(?,?,?,?,?,?)",
-                user.get("username"), passwordEncoder.encode(rawPassword), user.get("realName"),
-                user.get("role"), user.get("phone"), user.get("roomNo"));
+        jdbcTemplate.update(
+                "INSERT INTO sys_user(username,password,real_name,role,phone,room_no,gender,major_class,sleep_habit,smoking,hobbies,cleanliness,gaming,snoring,return_time,noise_tolerance,preferred_room_type,preferred_bed) " +
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                username, passwordEncoder.encode(rawPassword), user.get("realName"),
+                user.getOrDefault("role", "student"), user.get("phone"), user.get("roomNo"),
+                user.get("gender"), user.get("majorClass"), user.get("sleepHabit"),
+                user.get("smoking"), user.get("hobbies"), user.get("cleanliness"),
+                user.get("gaming"), user.get("snoring"), user.get("returnTime"),
+                user.get("noiseTolerance"), user.get("preferredRoomType"), user.get("preferredBed"));
     }
 
     public void update(Long id, Map<String, String> user) {
@@ -96,5 +133,17 @@ public class UserService {
         if (user.get("role") == null || user.get("role").trim().isEmpty()) {
             throw new IllegalArgumentException("角色不能为空");
         }
+    }
+
+    public void updateProfile(Long userId, Map<String, String> profile) {
+        jdbcTemplate.update(
+                "UPDATE sys_user SET gender=?,major_class=?,sleep_habit=?,smoking=?,hobbies=?," +
+                "cleanliness=?,gaming=?,snoring=?,return_time=?,noise_tolerance=?," +
+                "preferred_room_type=?,preferred_bed=?,phone=? WHERE id=?",
+                profile.get("gender"), profile.get("majorClass"), profile.get("sleepHabit"),
+                profile.get("smoking"), profile.get("hobbies"), profile.get("cleanliness"),
+                profile.get("gaming"), profile.get("snoring"), profile.get("returnTime"),
+                profile.get("noiseTolerance"), profile.get("preferredRoomType"), profile.get("preferredBed"),
+                profile.get("phone"), userId);
     }
 }

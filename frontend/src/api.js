@@ -97,3 +97,35 @@ export function fetchUnread(userId) {
 export function fetchWeather() {
   return request('/weather')
 }
+
+// -- Registration --
+export function register(profile) {
+  return request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(profile)
+  })
+}
+
+// -- Profile update --
+export function updateProfile(profile) {
+  return request('/users/profile', {
+    method: 'PUT',
+    body: JSON.stringify(profile)
+  })
+}
+
+// -- Smart Assignment --
+export function runAssignment() {
+  return request('/assignment/run', { method: 'POST' })
+}
+
+export function recommendTransfer(studentId) {
+  return request(`/assignment/recommend/${studentId}`)
+}
+
+export function confirmAssignment(assignments) {
+  return request('/assignment/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ assignments })
+  })
+}

@@ -46,6 +46,20 @@ public class DatabaseInitializer implements CommandLineRunner {
                 "is_read TINYINT DEFAULT 0," +
                 "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
+        // -- Migration: add feature columns for smart dorm assignment --
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN gender VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN major_class VARCHAR(80)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN sleep_habit VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN smoking VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN hobbies VARCHAR(200)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN cleanliness VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN gaming VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN snoring VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN return_time VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN noise_tolerance VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN preferred_room_type VARCHAR(10)");
+        addColumnIfNotExists("ALTER TABLE sys_user ADD COLUMN preferred_bed VARCHAR(10)");
+
         seedUser("admin", "123456", "系统管理员", "admin", "13800000001", "总控中心");
         seedUser("student", "123456", "邱子健", "student", "13800000002", "芙蓉楼3 · 519室 · 2号床");
         seedUser("dormkeeper", "123456", "李宿管", "dormkeeper", "13800000003", "芙蓉楼3值班室");
@@ -159,6 +173,12 @@ public class DatabaseInitializer implements CommandLineRunner {
         seedChatMessage(2L, 5L, "收到，我今天晚上收拾");
 
         jdbcTemplate.update("UPDATE sys_user SET real_name='邱子健', room_no='芙蓉楼3 · 519室 · 2号床' WHERE username='student'");
+
+        // -- Seed user feature data for smart assignment demo --
+        jdbcTemplate.update("UPDATE sys_user SET gender='男',major_class='智能科学与技术2025级',sleep_habit='晚睡',smoking='否',hobbies='编程,游戏,电影',cleanliness='整洁',gaming='是',snoring='否',return_time='晚归',noise_tolerance='正常',preferred_room_type='4人间' WHERE username='student'");
+        jdbcTemplate.update("UPDATE sys_user SET gender='男',major_class='智能科学与技术2025级',sleep_habit='早睡',smoking='否',hobbies='篮球,音乐,阅读',cleanliness='整洁',gaming='是',snoring='否',return_time='早归',noise_tolerance='安静',preferred_room_type='4人间' WHERE username='linruhai'");
+        jdbcTemplate.update("UPDATE sys_user SET gender='男',major_class='智能科学与技术2025级',sleep_habit='晚睡',smoking='否',hobbies='游戏,电影,健身',cleanliness='一般',gaming='是',snoring='是',return_time='晚归',noise_tolerance='热闹',preferred_room_type='4人间' WHERE username='qinxingrui'");
+        jdbcTemplate.update("UPDATE sys_user SET gender='男',major_class='智能科学与技术2025级',sleep_habit='早睡',smoking='否',hobbies='阅读,编程,音乐',cleanliness='整洁',gaming='是',snoring='否',return_time='正常',noise_tolerance='安静',preferred_room_type='4人间' WHERE username='chenjiahe'");
     }
 
     private void seedUser(String username, String password, String realName, String role, String phone, String roomNo) {
@@ -184,6 +204,14 @@ public class DatabaseInitializer implements CommandLineRunner {
         if (count != null && count == 0) {
             jdbcTemplate.update("INSERT INTO chat_message(from_user_id, to_user_id, content, is_read) VALUES(?,?,?,1)",
                     fromUserId, toUserId, content);
+        }
+    }
+
+    private void addColumnIfNotExists(String sql) {
+        try {
+            jdbcTemplate.execute(sql);
+        } catch (Exception e) {
+            // Column already exists — safe to ignore
         }
     }
 }
