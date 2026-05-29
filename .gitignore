@@ -1,0 +1,12 @@
+target/
+node_modules/
+*.log
+.idea/
+*.iml
+dist/
+.vscode/
+*.class
+*.jar
+.DS_Store
+# 敏感配置 — 不要提交真实密码和 API Key
+src/main/resources/application.properties
