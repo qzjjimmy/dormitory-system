@@ -83,7 +83,7 @@ AI 智能问答已接入 DeepSeek API（deepseek-chat 模型），`application.p
 3. **阶段二（跨班补位）**：收集空床位，贪心匹配最高兼容度的待分配学生
 4. **调宿推荐**：计算与目标宿舍成员的兼容度，返回 Top-3 推荐
 
-管理员在"智能分配"页面一键运行算法，查看分配结果矩阵和兼容度均分，确认后写入数据库。
+管理员在"智能分配"页面查看兼容性热力图和已有宿舍得分仪表盘，一键运行算法，查看分配结果和分配前后对比，确认后写入数据库并 WebSocket 通知学生。
 
 **涉及文件**：`RoomAssignmentService.java`、`AssignmentController.java`、`SmartAssignment.vue`、`RegisterForm.vue`、`ProfileCompletionModal.vue`
 

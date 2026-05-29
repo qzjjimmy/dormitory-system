@@ -73,8 +73,8 @@
 
           <!-- Bed grid -->
           <div class="bed-grid" :style="{ gridTemplateColumns: 'repeat(' + (room.members.length > 4 ? 6 : 4) + ', 1fr)' }">
-            <div v-for="(m, idx) in room.members" :key="m.id" class="bed-cell occupied" :title="tooltip(m)">
-              <span class="bed-num">{{ idx + 1 }}号床</span>
+            <div v-for="m in room.members" :key="m.id" class="bed-cell occupied" :title="tooltip(m)">
+              <span class="bed-num">{{ m.bed || '-' }}</span>
               <span class="bed-name">{{ m.realName }}</span>
               <span class="bed-class">{{ m.majorClass }}</span>
             </div>

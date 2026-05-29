@@ -223,7 +223,7 @@ Controller 不直接操作数据库，所有 SQL 和业务逻辑封装在 Servic
 | `ChatView.vue` | 全部 | 即时通讯：联系人列表（未分配仅见管理员/宿管）+ WebSocket 实时消息 + 未读角标 |
 | `RegisterForm.vue` | 学生（登录页） | 新生注册：两页表单（账号 + 10 特征）+ 房间/床位偏好选择 |
 | `ProfileCompletionModal.vue` | 学生 | 老用户首次登录强制补全特征弹窗，不可跳过 |
-| `SmartAssignment.vue` | 管理员 | 智能分配：分配结果矩阵（含兼容度均分）+ 调宿 Top-3 推荐 + 确认写入 |
+| `SmartAssignment.vue` | 管理员 | 智能分配：热力图 + 宿舍得分仪表盘 + 床位矩阵 + 调宿 Top-3 + 分配前后对比 |
 | `RatingPage.vue` | 学生 | 服务评价：综合评分圆环 + 评价记录 + 提交表单 |
 | `VisitorPage.vue` | 学生 | 访客预约：记录表格 + 点击展开预约表单 |
 | `TransferPage.vue` | 学生 | 调宿申请：记录表格 + 点击展开申请表 |

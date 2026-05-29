@@ -223,18 +223,34 @@ public class RoomAssignmentService {
 
         // Group by room prefix
         Map<String, List<StudentProfile>> groups = new LinkedHashMap<>();
+        Map<Long, String> bedMap = new HashMap<>();
         for (Map<String, Object> row : rows) {
             String roomNo = (String) row.get("roomNo");
             if (roomNo == null) continue;
             String prefix = roomNo.replaceAll(" · \\d+号床.*$", "");
-            groups.computeIfAbsent(prefix, k -> new ArrayList<>()).add(StudentProfile.fromMap(row));
+            StudentProfile sp = StudentProfile.fromMap(row);
+            groups.computeIfAbsent(prefix, k -> new ArrayList<>()).add(sp);
+            // Extract bed number
+            java.util.regex.Matcher bedMatcher = java.util.regex.Pattern.compile("(\\d+号床)").matcher(roomNo);
+            bedMap.put(sp.id, bedMatcher.find() ? bedMatcher.group(1) : "?号床");
         }
 
         List<Map<String, Object>> roomList = new ArrayList<>();
         for (Map.Entry<String, List<StudentProfile>> entry : groups.entrySet()) {
             Map<String, Object> rm = new LinkedHashMap<>();
             rm.put("roomNo", entry.getKey());
-            rm.put("capacity", entry.getValue().size() > 4 ? 6 : 4);
+            int capacity = entry.getValue().size() > 4 ? 6 : 4;
+            rm.put("capacity", capacity);
+
+            // Sort members by bed number
+            entry.getValue().sort((a, b) -> {
+                String ba = bedMap.getOrDefault(a.id, "0");
+                String bb = bedMap.getOrDefault(b.id, "0");
+                int na = Integer.parseInt(ba.replaceAll("\\D", "0"));
+                int nb = Integer.parseInt(bb.replaceAll("\\D", "0"));
+                return na - nb;
+            });
+
             List<Map<String, Object>> memberList = new ArrayList<>();
             int totalScore = 0, pairCount = 0;
             for (StudentProfile m : entry.getValue()) {
@@ -246,6 +262,7 @@ public class RoomAssignmentService {
                 mb.put("smoking", m.smoking);
                 mb.put("cleanliness", m.cleanliness);
                 mb.put("gaming", m.gaming);
+                mb.put("bed", bedMap.getOrDefault(m.id, "?号床"));
                 memberList.add(mb);
                 for (StudentProfile other : entry.getValue()) {
                     if (!m.id.equals(other.id)) {
@@ -377,7 +394,9 @@ public class RoomAssignmentService {
             List<Map<String, Object>> memberList = new ArrayList<>();
             int totalScore = 0;
             int pairCount = 0;
+            int bedIdx = 0;
             for (StudentProfile m : r.members) {
+                bedIdx++;
                 Map<String, Object> mb = new LinkedHashMap<>();
                 mb.put("id", m.id);
                 mb.put("realName", m.realName);
@@ -386,6 +405,7 @@ public class RoomAssignmentService {
                 mb.put("smoking", m.smoking);
                 mb.put("cleanliness", m.cleanliness);
                 mb.put("gaming", m.gaming);
+                mb.put("bed", bedIdx + "号床");
                 memberList.add(mb);
                 // Calculate pairwise scores for avg
                 for (StudentProfile other : r.members) {

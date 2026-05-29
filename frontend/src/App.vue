@@ -436,6 +436,11 @@ export default {
               color: '#8097bd',
               role: 'student'
             }))
+            .sort((a, b) => {
+              const na = parseInt((a.bed || '0').match(/\d+/)?.[0] || '0')
+              const nb = parseInt((b.bed || '0').match(/\d+/)?.[0] || '0')
+              return na - nb
+            })
         } else {
           this.roommates = []
         }
